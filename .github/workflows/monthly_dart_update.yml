@@ -1,0 +1,37 @@
+name: Monthly DART update
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 0 1 * *" # 09:15 KST on the 1st day of every month
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dart-monthly-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Fetch DART and build dashboard
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+        run: |
+          python src/update_data.py
+          python src/build_dashboard.py
+      - name: Commit updated data and dashboard
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data docs
+          git diff --cached --quiet || git commit -m "chore: monthly DART update"
+          git push
